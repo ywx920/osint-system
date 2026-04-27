@@ -1,0 +1,63 @@
+services:
+  redis:
+    image: redis:7
+    restart: always
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: osint
+      POSTGRES_PASSWORD: osint123
+      POSTGRES_DB: osintdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ./api
+      network: host
+    
+    restart: always
+    ports:
+      - "7000:7000"
+    depends_on:
+      - postgres
+
+  analyzer:
+    build:
+      context: ./analyzer
+      network: host
+    
+    restart: always
+    environment:
+      REDIS_HOST: redis
+      PG_HOST: postgres
+      PG_USER: osint
+      PG_PASSWORD: osint123
+      PG_DB: osintdb
+      OLLAMA_URL: http://192.168.31.11:11434/api/generate
+      OLLAMA_MODEL: qwen2.5:7b
+    depends_on:
+      - redis
+      - postgres
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  crawler:
+    build:
+      context: ./crawler
+      network: host
+    
+    restart: always
+    environment:
+      REDIS_HOST: redis
+    depends_on:
+      - redis
+
+volumes:
+  pgdata:
